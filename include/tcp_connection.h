@@ -20,6 +20,12 @@ public:
     int Fd() const;
     bool IsValid() const;
 
+    /**
+     * @brief 读数据到recv_buffer中
+     * 
+     * @return true 
+     * @return false 
+     */
     bool ReadFromSocket();
     bool WriteToSocket();
 

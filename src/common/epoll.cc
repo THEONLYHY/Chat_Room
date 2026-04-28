@@ -50,6 +50,7 @@ bool Epoll::Modify(int fd, uint32_t events) {
     }
     return true;
 }
+
 bool Epoll::Remove(int fd) {
         if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr) == -1) {
         std::cerr << "epoll_ctl DEL failed : "
