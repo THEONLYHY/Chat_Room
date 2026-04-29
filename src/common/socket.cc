@@ -1,4 +1,4 @@
-#include "../../include/socket.h"
+#include "socket.h"
 
 #include <arpa/inet.h>   // inet_pton, htons
 #include <cerrno>        // errno

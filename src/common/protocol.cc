@@ -1,4 +1,4 @@
-#include "../../include/protocol.h"
+#include "protocol.h"
 
 namespace protocol {
 
@@ -152,9 +152,11 @@ bool IsValidJson(const std::string& data, nlohmann::json& message) {
 
 std::string GetStringField(const nlohmann::json& message,
                            const std::string& key) {
+  // key不存在，类型不是string，都返回空
   if (!message.contains(key) || !message.at(key).is_string()) {
     return "";
   }
+  // key存在就转成string返回
   return message.at(key).get<std::string>();
 }
 

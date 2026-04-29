@@ -1,4 +1,4 @@
-#include "../../include/tcp_connection.h"
+#include "tcp_connection.h"
 
 #include <arpa/inet.h>   // htonl, ntohl
 #include <cerrno>        // errno
