@@ -175,7 +175,7 @@ bool Client::SendJson(const nlohmann::json& message) {
     if (!epoll_.Modify(connection_.Fd(), EPOLLIN | EPOLLOUT | EPOLLRDHUP)) {
         return false;
     }
-    return epoll_.Modify(connection_.Fd(), EPOLLIN | EPOLLOUT | EPOLLRDHUP);
+    return true;
 }
 
 bool Client::ParseCommand(const std::string& line, nlohmann::json& message) {
@@ -285,7 +285,7 @@ void Client::PrintServerMessage(const nlohmann::json& message) {
         const std::string reason = protocol::GetStringField(message, "reason");
 
         std::cout << (success ? "[OK] " : "[FAILED] ") << reason;
-        
+
         if (message.contains("users") && message["users"].is_array()) {
             std::cout << "\n[online users]";
             for (const auto& user : message["users"]) {
