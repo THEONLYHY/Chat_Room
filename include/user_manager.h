@@ -60,6 +60,8 @@ public:
      * @return std::vector<std::string> 
      */
     std::vector<std::string> GetOnlineUsers() const;
+
+    std::vector<std::string> GetAllUsers() const;
 private:
     struct UserInfo {
         std::string password; //用户密码

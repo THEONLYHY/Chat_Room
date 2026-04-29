@@ -157,3 +157,15 @@ std::vector<std::string> UserManager::GetOnlineUsers() const {
     }
     return online_users;
 }
+
+std::vector<std::string> UserManager::GetAllUsers() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::vector<std::string> all_users;
+    all_users.reserve(users_.size());
+
+    for (const auto& pair : users_) {
+        all_users.push_back(pair.first);
+    }
+    return all_users;
+}
