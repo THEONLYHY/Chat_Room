@@ -273,6 +273,32 @@ bool Client::ParseCommand(const std::string& line, nlohmann::json& message) {
         return true;
     }
 
+    if (command == "/list_users") {
+        message["type"] = "list_users";
+        return true;
+    }
+
+    if (command == "/kick") {
+        std::string username;
+        iss >> username;
+        if (username.empty()) {
+            return false;
+        }
+        message["type"] = "kick_user";
+        message["username"] = username;
+        return true;
+    }
+
+    if (command == "/delete_user") {
+        std::string username;
+        iss >> username;
+        if (username.empty()) {
+            return false;
+        }
+        message["type"] = "delete_user";
+        message["username"] = username;
+        return true;
+    }
     return false;
 }
 
@@ -287,7 +313,7 @@ void Client::PrintServerMessage(const nlohmann::json& message) {
         std::cout << (success ? "[OK] " : "[FAILED] ") << reason;
 
         if (message.contains("users") && message["users"].is_array()) {
-            std::cout << "\n[online users]";
+            std::cout << "\n[" << reason << "]";
             for (const auto& user : message["users"]) {
                 if (user.is_string()) {
                     std::cout << " " << user.get<std::string>();
@@ -300,7 +326,8 @@ void Client::PrintServerMessage(const nlohmann::json& message) {
     }
 
     if (type == "system") {
-        std::cout << "[system] "
+        std::cout << "[system] ["
+                  << protocol::GetStringField(message, "timestamp") << "] "
                   << protocol::GetStringField(message, "content") << '\n';
         return;
     }
@@ -325,14 +352,18 @@ void Client::PrintServerMessage(const nlohmann::json& message) {
 }
 
 void Client::PrintHelp() const {
-  std::cout << "\ncommands:\n"
-            << "  /register <username> <password>\n"
-            << "  /login <username> <password>\n"
-            << "  /logout\n"
-            << "  /passwd <old_password> <new_password>\n"
-            << "  /online\n"
-            << "  /msg <username> <message>\n"
-            << "  /all <message>\n"
-            << "  /help\n"
-            << "  /quit\n\n";
+    std::cout << "\ncommands:\n"
+              << "  /register <username> <password>\n"
+              << "  /login <username> <password>\n"
+              << "  /logout\n"
+              << "  /passwd <old_password> <new_password>\n"
+              << "  /online\n"
+              << "  /msg <username> <message>\n"
+              << "  /all <message>\n"
+              << "  /list_users            (root only)\n"
+              << "  /kick <username>       (root only)\n"
+              << "  /delete_user <username> (root only)\n"
+              << "  /help\n"
+              << "  /quit\n\n";
 }
+

@@ -43,6 +43,7 @@ private:
     // 根据消息类型进行消息分发
     void DispatchMessage(int fd, const nlohmann::json& message);
     bool RequireLogin(int fd);
+    bool RequireRoot(int fd);
 
     void HandleRegister(int fd, const nlohmann::json& message);
     void HandleLogin(int fd, const nlohmann::json& message);
@@ -51,6 +52,10 @@ private:
     void HandleOnlineUsers(int fd);
     void HandlePrivateChat(int fd, const nlohmann::json& message);
     void HandleGroupChat(int fd, const nlohmann::json& message);
+
+    void HandleDeleteUser(int fd, const nlohmann::json& message);
+    void HandleKickUser(int fd, const nlohmann::json& message);
+    void HandleListUsers(int fd);
 
     bool SendJson(int fd, const nlohmann::json& message);
     bool SendResponse(int fd, bool success, const std::string& reason);

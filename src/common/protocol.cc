@@ -36,7 +36,7 @@ MessageType StringToMessageType(const std::string& type) {
     if (type == "kick_user") {
         return MessageType::kKickUser;
     }
-    if (type == "List_users") {
+    if (type == "list_users") {
         return MessageType::kListUsers;
     }
     if (type == "system") {
@@ -149,22 +149,15 @@ nlohmann::json MakeChatMessage(const std::string& type,
 }
 
 nlohmann::json MakeOnlineUsersResponse(const std::vector<std::string>& users) {
-    nlohmann::json response;
-    response["type"] = "online_users";
-    response["success"] = true;
-    response["reason"] = "online users";
+    nlohmann::json response = MakeResponse(true, "online users");
     response["users"] = users;
-    response["timestamp"] = NowTimeString();
     return response;
 }
 
+
 nlohmann::json MakeAllUsersResponse(const std::vector<std::string>& users) {
-    nlohmann::json response;
-    response["type"] = "list_users";
-    response["success"] = true;
-    response["reason"] = "all users";
+    nlohmann::json response = MakeResponse(true, "all users");
     response["users"] = users;
-    response["timestamp"] = NowTimeString();
     return response;
 }
 

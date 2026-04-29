@@ -236,6 +236,15 @@ void Server::DispatchMessage(int fd, const nlohmann::json& message) {
         case protocol::MessageType::kGroupChat:
             HandleGroupChat(fd, message);
             break;
+        case protocol::MessageType::kDeleteUser:
+            HandleDeleteUser(fd, message);
+            break;
+        case protocol::MessageType::kKickUser:
+            HandleKickUser(fd, message);
+            break;
+        case protocol::MessageType::kListUsers:
+            HandleListUsers(fd);
+            break;
         default:
             SendResponse(fd, false, "unknown message type");
             break;
@@ -248,6 +257,18 @@ bool Server::RequireLogin(int fd) {
     const bool logged_in = user_manager_.IsOnline(username);
     if (!logged_in) {
         SendResponse(fd, false, "please login first");
+        return false;
+    }
+    return true;
+}
+
+bool Server::RequireRoot(int fd) {
+    if (!RequireLogin(fd)) {
+        return false;
+    }
+    const std::string username = user_manager_.GetUsernameByFd(fd);
+    if (!user_manager_.IsRoot(username)) {
+        SendResponse(fd, false, "permission denied, root only");
         return false;
     }
     return true;
@@ -381,6 +402,75 @@ void Server::HandleGroupChat(int fd, const nlohmann::json& message) {
     BroadcastJson(protocol::MakeChatMessage("group_chat", from, content), fd);
     SendResponse(fd, true, "group message sent");
     LOG_INFO("group chat, from = {}", from);
+}
+
+void Server::HandleDeleteUser(int fd, const nlohmann::json& message) {
+    if (!RequireRoot(fd)) {
+        return;
+    }
+    const std::string target_user = protocol::GetStringField(message, "username");
+    if (target_user.empty()) {
+        SendResponse(fd, false, "target username is empty");
+        return;
+    }
+
+    if (target_user == "root") {
+        SendResponse(fd, false, "can't delete root");
+        return;
+    }
+    // 从连接中移除
+    const int target_fd = user_manager_.GetFdByUsername(target_user);
+    if (target_fd != -1) {
+        SendJson(target_fd, protocol::MakeSystemMessage("your account was delete by root"));
+        RemoveConncetion(target_fd);
+    }
+    // 从user_manager中移除
+    if (!user_manager_.DeleteUser(target_user)) {
+        SendResponse(fd, false, "delete user failed");
+        return;
+    }
+
+    SendResponse(fd, true, "delet user success");
+    BroadcastJson(protocol::MakeSystemMessage(target_fd + "was deleted by root"), fd);
+    LOG_INFO("root delete user success, target = {}", target_user);
+}
+
+void Server::HandleKickUser(int fd, const nlohmann::json& message) {
+    if (!RequireRoot(fd)) {
+        return;
+    }
+
+    const std::string target = protocol::GetStringField(message, "username");
+    if (target.empty()) {
+        SendResponse(fd, false, "username is empty");
+        return;
+    }
+
+    if (target == "root") {
+        SendResponse(fd, false, "can't kick root");
+        return;
+    }
+    const int target_fd = user_manager_.GetFdByUsername(target);
+    if (target_fd == -1) {
+        SendResponse(fd, false, "can't get target user");
+        return;
+    }
+
+    SendJson(target_fd, protocol::MakeSystemMessage("you are kicked by root"));
+    HandleLogout(target_fd);
+    RemoveConncetion(target_fd);
+    
+    SendResponse(fd, true, "kick user success");
+    BroadcastJson(protocol::MakeSystemMessage(target + " was kicked by root"), fd);
+    LOG_INFO("root kick user success, target = {}", target);
+}
+
+void Server::HandleListUsers(int fd) {
+    if (!RequireRoot(fd)) {
+        return;
+    }
+
+    SendJson(fd, protocol::MakeAllUsersResponse(user_manager_.GetAllUsers()));
 }
 
 bool Server::SendJson(int fd, const nlohmann::json& message) {
