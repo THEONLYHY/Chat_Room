@@ -1,9 +1,11 @@
-#include "../../include/server.h"
+#include "server.h"
+#include "logger.h"
 
 #include <cstdlib>
 #include <iostream>
 
 int main(int argc, char* argv[]) {
+    // ./server 8888
     if (argc != 2) {
         std::cerr << "usage: " << argv[0] << " <port>\n";
         return 1;
@@ -13,6 +15,10 @@ int main(int argc, char* argv[]) {
     if (port <= 0 || port > 65535) {
         std::cerr << "invalid port\n";
         return 1;
+    }
+
+    if (!Logger::Init()) {
+        return false;
     }
 
     Server server(port);

@@ -34,6 +34,7 @@ std::string MessageTypeToString(MessageType type);
 //   "type": "response",
 //   "success": true,
 //   "reason": "login success"
+//   "timestamp": "2026-04-28 11:30:00"
 // }
 nlohmann::json MakeResponse(bool success, const std::string& reason);
 
@@ -41,11 +42,21 @@ nlohmann::json MakeResponse(bool success, const std::string& reason);
 // 常用于服务器主动通知客户端。
 // 例如：
 // {
-//   "type": "system",
+//   "type": "system", 
 //   "content": "user tom joined the chat room"
+//   "timestamp": "2026-04-28 11:30:00"
 // }
 nlohmann::json MakeSystemMessage(const std::string& content);
 
+// 创建一个聊天消息 JSON
+// 
+// 例如：
+// {
+//   "type": "private_chat",
+//   "from": "aaa",
+//   "content": "hello",
+//   "timestamp": "2026-04-28 11:30:00"
+// }
 nlohmann::json MakeChatMessage(const std::string& type,
                                const std::string& from,
                                const std::string& content);
@@ -60,6 +71,13 @@ nlohmann::json MakeOnlineUsersResponse(const std::vector<std::string>& users);
  * @return false 解析失败
  */
 bool IsValidJson(const std::string& data, nlohmann::json& message);
+/**
+ * @brief Get the String Field object
+ * 读取JSON字段，从JSON中取出某个key对用的字符串值
+ * @param message 
+ * @param key 
+ * @return std::string 
+ */
 std::string GetStringField(const nlohmann::json& message, const std::string& key);
 
 } // namespace protocol

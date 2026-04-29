@@ -1,6 +1,6 @@
-#include "../../include/server.h"
-#include "../../include/logger.h"
-#include "../../include/protocol.h"
+#include "server.h"
+#include "logger.h"
+#include "protocol.h"
 
 #include <csignal>
 #include <cerrno>       // errno
@@ -16,10 +16,6 @@ using json = nlohmann::json;
 
 bool Server::Start() {
     signal(SIGPIPE, SIG_IGN);
-
-    if (!Logger::Init()) {
-        return false;
-    }
 
     if (!listen_socket_.Create()) {
         return false;
@@ -56,12 +52,14 @@ bool Server::Start() {
 void Server::Run() {
     while (true) {
         std::vector<EpollEvent> events = epoll_.Wait(-1);
+        // 循环助理本轮返回的事件
         for (const auto& ev : events) {
+            // 有新客户端连接
             if (ev.fd == listen_socket_.Fd()) {
                 HandleAccept();
                 continue;
             }
-            // 如果客户端连接出错或断开，移除连接
+            // 客户端连接异常、挂断、关闭写端，移除连接
             if (ev.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
                 RemoveConncetion(ev.fd);
                 continue;
@@ -73,7 +71,7 @@ void Server::Run() {
                     continue;
                 }
             }
-            // 客户端socket可写，说明可以继续发送send_buffer_中的数据
+            // 客户端socket可写，发送缓冲区send_buffer_数据
             if (ev.events & EPOLLOUT) {
                 HandleWrite(ev.fd);
             }
@@ -143,17 +141,17 @@ bool Server::HandleRead(int fd) {
     // 从recv_buffer中解析完整的信息
     while (connection.TryPopMessage(raw_message)) {
         json message;
-
+        // 解析JSON失败，则回复错误，但不关闭连接
         if (!protocol::IsValidJson(raw_message, message)) {
             SendResponse(fd, false, "invalid json");
             continue;
         }
-
+        // JSON合法， 分发消息
         DispatchMessage(fd, message);
     }
 
-    // 如果发送缓冲区里有数据，就打开EPOLLOUT
-    // 等socket可写时再真正发送
+    // 如果发送缓冲区里还有数据，就打开EPOLLOUT
+    // 等socket可写时再真正发送，避免阻塞
     if (connection.HasDataToWrite()) {
         epoll_.Modify(fd, EPOLLIN | EPOLLOUT | EPOLLRDHUP);
     }
@@ -161,6 +159,7 @@ bool Server::HandleRead(int fd) {
 }
 
 void Server::HandleWrite(int fd) {
+    // 找到fd对应的连接
     auto iter = connections_.find(fd);
     if (iter == connections_.end()) {
         LOG_WARN("write event for unknown fd = {}", fd);
@@ -173,17 +172,18 @@ void Server::HandleWrite(int fd) {
         return;
     }
 
-    //如果还有没发送完的数据，继续监听EPOLLOUT
+    // 如果都发完了，关闭EPOLLOUT监听
+    // 避免socket一直可写导致epoll_wait频繁返回
     if (!connection.HasDataToWrite()) {
-        // 如果都发完了，取消EPOLLOUT
-        // 避免socket一直可写导致epoll_wait频繁返回
         epoll_.Modify(fd, EPOLLIN | EPOLLRDHUP);
     }
 }
 
 void Server::RemoveConncetion(int fd) {
+    // 根据fd查用户名
     std::string username = user_manager_.GetUsernameByFd(fd);
 
+    // 如果对应连接的是已登录用户，先登出并广播下线消息
     if (!username.empty()) {
         user_manager_.LogoutByFd(fd);
         BroadcastJson(protocol::MakeSystemMessage(username + " offline "), fd);
@@ -201,47 +201,52 @@ void Server::RemoveConncetion(int fd) {
 
 // 消息分发
 void Server::DispatchMessage(int fd, const nlohmann::json& message) {
+    // 取出type字段， 获得消息类型
     const std::string type = protocol::GetStringField(message, "type");
     const protocol::MessageType message_type = protocol::StringToMessageType(type);
 
-    const bool logged_in = !user_manager_.GetUsernameByFd(fd).empty();
-
+    const std::string username = user_manager_.GetUsernameByFd(fd);
+    const bool logged_in = user_manager_.IsOnline(username);
+    // 未登录的情况，只允许register和login
     if (!logged_in && message_type != protocol::MessageType::kRegister &&
         message_type != protocol::MessageType::kLogin) {
         SendResponse(fd, false, "please login first");
         return;
     }
-
+    // 根据消息类型进行不同的业务处理
     switch (message_type) {
         case protocol::MessageType::kRegister:
-        HandleRegister(fd, message);
-        break;
+            HandleRegister(fd, message);
+            break;
         case protocol::MessageType::kLogin:
-        HandleLogin(fd, message);
-        break;
+            HandleLogin(fd, message);
+            break;
         case protocol::MessageType::kLogout:
-        HandleLogout(fd);
-        break;
+            HandleLogout(fd);
+            break;
         case protocol::MessageType::kChangePassword:
-        HandleChangePassword(fd, message);
-        break;
+            HandleChangePassword(fd, message);
+            break;
         case protocol::MessageType::kOnlineUsers:
-        HandleOnlineUsers(fd);
-        break;
+            HandleOnlineUsers(fd);
+            break;
         case protocol::MessageType::kPrivateChat:
-        HandlePrivateChat(fd, message);
-        break;
+            HandlePrivateChat(fd, message);
+            break;
         case protocol::MessageType::kGroupChat:
-        HandleGroupChat(fd, message);
-        break;
+            HandleGroupChat(fd, message);
+            break;
         default:
-        SendResponse(fd, false, "unknown message type");
-        break;
+            SendResponse(fd, false, "unknown message type");
+            break;
     }
 }
 
 bool Server::RequireLogin(int fd) {
-    if (user_manager_.GetUsernameByFd(fd).empty()) {
+    // 当前fd是否登录
+    const std::string username = user_manager_.GetUsernameByFd(fd);
+    const bool logged_in = user_manager_.IsOnline(username);
+    if (!logged_in) {
         SendResponse(fd, false, "please login first");
         return false;
     }
@@ -249,6 +254,7 @@ bool Server::RequireLogin(int fd) {
 }
 
 void Server::HandleRegister(int fd, const nlohmann::json& message) {
+    // 取出用户名和密码
     const std::string username = protocol::GetStringField(message, "username");
     const std::string password = protocol::GetStringField(message, "password");
 
@@ -256,7 +262,7 @@ void Server::HandleRegister(int fd, const nlohmann::json& message) {
         SendResponse(fd, false, "username or password is empty");
         return;
     }
-
+    // 注册失败，说明用户名存在或注册未通过
     if (!user_manager_.RegisterUser(username, password)) {
         SendResponse(fd, false, "username already exists");
         return;
@@ -280,17 +286,20 @@ void Server::HandleLogin(int fd, const nlohmann::json& message) {
         return;
     }
 
+    // 登录成功，回复客户端并广播系统消息
     SendResponse(fd, true, "login success");
     BroadcastJson(protocol::MakeSystemMessage(username + " online"), fd);
     LOG_INFO("login success, username = {}, fd = {}", username, fd);
 }
 
 void Server::HandleLogout(int fd) {
+    // 必须先登录
     if (!RequireLogin(fd)) {
         return;
     }
 
     const std::string username = user_manager_.GetUsernameByFd(fd);
+    // 从用户管理器中登出
     user_manager_.LogoutByFd(fd);
 
     SendResponse(fd, true, "logout success");
@@ -325,7 +334,7 @@ void Server::HandleOnlineUsers(int fd) {
     if (!RequireLogin(fd)) {
         return;
     }
-
+    // 返回在线用户列表
     SendJson(fd, protocol::MakeOnlineUsersResponse(user_manager_.GetOnlineUsers()));
 }
 
@@ -334,7 +343,9 @@ void Server::HandlePrivateChat(int fd, const nlohmann::json& message) {
         return;
     }
 
+    // 发送者
     const std::string from = user_manager_.GetUsernameByFd(fd);
+    // 目标者
     const std::string to = protocol::GetStringField(message, "to");
     const std::string content = protocol::GetStringField(message, "content");
 
@@ -342,7 +353,7 @@ void Server::HandlePrivateChat(int fd, const nlohmann::json& message) {
         SendResponse(fd, false, "target user or content is empty");
         return;
     }
-
+    // 目标用户在线fd
     const int target_fd = user_manager_.GetFdByUsername(to);
     if (target_fd == -1) {
         SendResponse(fd, false, "target user is not online");
@@ -379,23 +390,27 @@ bool Server::SendJson(int fd, const nlohmann::json& message) {
     }
 
     TcpConnection& connection = iter->second;
+    // 把JSON字符串放进发送缓冲区
     if (!connection.QueueMessage(message.dump())) {
         return false;
     }
-
+    // 打开EPOLLOUT， 等待发送
     return epoll_.Modify(fd, EPOLLIN | EPOLLOUT | EPOLLRDHUP);
 }
 
+// response封装
 bool Server::SendResponse(int fd, bool success, const std::string& reason) {
     return SendJson(fd, protocol::MakeResponse(success, reason));
 }
 
 void Server::BroadcastJson(const nlohmann::json& message, int except_fd) {
+    // 获得当前所有在线用户
     std::vector<std::string> users = user_manager_.GetOnlineUsers();
     for (const std::string& username : users) {
         const int target_fd = user_manager_.GetFdByUsername(username);
+        // 跳过无效fd和除外的fd
         if (target_fd != -1 && target_fd != except_fd) {
-        SendJson(target_fd, message);
+            SendJson(target_fd, message);
         }
     }
 }

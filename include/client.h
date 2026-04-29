@@ -41,10 +41,16 @@ private:
     /// @brief 处理socket可写事件
     /// @return 
     bool HandleWrite();
-
+    
     bool SendJson(const nlohmann::json& message);
+    /// @brief 用字符串解析JSON
+    /// @param line 
+    /// @param message 
+    /// @return 
     bool ParseCommand(const std::string& line, nlohmann::json& message);
+    
     void PrintServerMessage(const nlohmann::json& message);
+    /// @brief 打印帮组文档
     void PrintHelp() const;
 
     std::string server_ip_;

@@ -1,7 +1,7 @@
 #ifndef INCLUDE_TCP_CONNECTION_H_
 #define INCLUDE_TCP_CONNECTION_H_
 
-#include "./socket.h"
+#include "socket.h"
 
 #include <cstddef>  // size_t
 #include <string>   // std::string

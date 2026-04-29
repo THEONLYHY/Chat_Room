@@ -59,6 +59,7 @@ private:
     int port_;
     Socket listen_socket_;
     Epoll epoll_;
+    // key: fd , value: 连接
     std::unordered_map<int, TcpConnection> connections_;
 
     UserManager user_manager_;
