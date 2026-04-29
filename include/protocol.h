@@ -15,6 +15,9 @@ enum class MessageType {
     kOnlineUsers,     // 获取在线用户列表请求
     kPrivateChat,     // 私聊消息
     kGroupChat,       // 群聊消息
+    kDeleteUser,      // 删除用户
+    kKickUser,        // 踢出在线用户
+    kListUsers,       // 获取所有用户列表
     kSystem,          // 系统消息，例如服务器通知
     kResponse,        // 响应消息，例如操作成功 / 失败
     kUnknown          // 未知消息类型，用于处理非法 type
@@ -60,8 +63,10 @@ nlohmann::json MakeSystemMessage(const std::string& content);
 nlohmann::json MakeChatMessage(const std::string& type,
                                const std::string& from,
                                const std::string& content);
-
+// online_users
 nlohmann::json MakeOnlineUsersResponse(const std::vector<std::string>& users);
+// all_users
+nlohmann::json MakeAllUsersResponse(const std::vector<std::string>& users);
 /**
  * @brief 
  * 检查字符串是否是合法JSON
