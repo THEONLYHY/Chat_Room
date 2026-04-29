@@ -102,7 +102,8 @@ Socket Socket::Accept() {
                            reinterpret_cast<sockaddr*>(&client_addr),
                            &client_len);
     if (client_fd == -1) {
-        std::cerr << "accept failed: " << strerror(errno) << '\n';
+        // 不能在这里打印错误
+        // std::cerr << "accept failed: " << strerror(errno) << '\n';
         return Socket();
     }
 

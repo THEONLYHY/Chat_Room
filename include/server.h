@@ -5,7 +5,12 @@
 #include "socket.h"
 #include "epoll.h"
 #include "tcp_connection.h"
+#include "user_manager.h"
+
+#include "nlohmann/json.hpp"
+
 #include <unordered_map>
+#include <string>
 
 
 class Server {
@@ -31,26 +36,32 @@ private:
     static constexpr int kBacklog = 128;
 
     void HandleAccept();
-    /**
-     * @brief 处理客户端的可读事件
-     * 
-     * @param fd 
-     * @return true 
-     * @return false 
-     */
     bool HandleRead(int fd);
-    /**
-     * @brief 处理客户端的可写事件
-     * 
-     * @param fd 
-     */
     void HandleWrite(int fd);
-    void Removeconncetion(int fd);
+    void RemoveConncetion(int fd);
+
+    // 根据消息类型进行消息分发
+    void DispatchMessage(int fd, const nlohmann::json& message);
+    bool RequireLogin(int fd);
+
+    void HandleRegister(int fd, const nlohmann::json& message);
+    void HandleLogin(int fd, const nlohmann::json& message);
+    void HandleLogout(int fd);
+    void HandleChangePassword(int fd, const nlohmann::json& message);
+    void HandleOnlineUsers(int fd);
+    void HandlePrivateChat(int fd, const nlohmann::json& message);
+    void HandleGroupChat(int fd, const nlohmann::json& message);
+
+    bool SendJson(int fd, const nlohmann::json& message);
+    bool SendResponse(int fd, bool success, const std::string& reason);
+    void BroadcastJson(const nlohmann::json& message, int except_fd = -1);
 
     int port_;
     Socket listen_socket_;
     Epoll epoll_;
     std::unordered_map<int, TcpConnection> connections_;
+
+    UserManager user_manager_;
 };
 
 #endif

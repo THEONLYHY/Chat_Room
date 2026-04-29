@@ -8,6 +8,7 @@
 
 class UserManager {
 public:
+    UserManager();
     /**
      * @brief 注册新用户
      * 
@@ -17,7 +18,7 @@ public:
      * @return false 
      */
     bool RegisterUser(const std::string& username, const std::string& password);
-
+    bool DeleteUser(const std::string& username);
     /**
      * @brief 用户登录
      * 失败：
@@ -35,7 +36,8 @@ public:
                         const std::string& new_password);
 
     bool IsOnline(const std::string& username) const;
-
+    bool IsRoot(const std::string& username) const;
+    bool UserExists(const std::string& username) const;
     /**
      * @brief Get the Fd By Username objectd
      * 
@@ -63,6 +65,7 @@ private:
         std::string password; //用户密码
         bool online = false; // 用户是否在线
         int fd = -1; // 用户对应的socket fd
+        bool root = false;
     };
     
     // mutable:即使在const成员函数中，如IsOnline(), GetOnlineUsers()

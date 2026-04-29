@@ -4,6 +4,8 @@
 
 #include "epoll.h"
 #include "tcp_connection.h"
+#include "nlohmann/json.hpp"
+
 #include <string>
 
 /**
@@ -39,8 +41,15 @@ private:
     /// @brief 处理socket可写事件
     /// @return 
     bool HandleWrite();
+
+    bool SendJson(const nlohmann::json& message);
+    bool ParseCommand(const std::string& line, nlohmann::json& message);
+    void PrintServerMessage(const nlohmann::json& message);
+    void PrintHelp() const;
+
     std::string server_ip_;
     int port_;
+    bool running_ = false;
 
     Epoll epoll_; // 同时监听stdin和socket
     TcpConnection connection_;

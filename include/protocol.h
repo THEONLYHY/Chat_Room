@@ -20,6 +20,8 @@ enum class MessageType {
     kUnknown          // 未知消息类型，用于处理非法 type
 };
 
+std::string NowTimeString();
+
 // string -> enum MessageType
 MessageType StringToMessageType(const std::string& type);
 // MessageType -> string
@@ -44,6 +46,11 @@ nlohmann::json MakeResponse(bool success, const std::string& reason);
 // }
 nlohmann::json MakeSystemMessage(const std::string& content);
 
+nlohmann::json MakeChatMessage(const std::string& type,
+                               const std::string& from,
+                               const std::string& content);
+
+nlohmann::json MakeOnlineUsersResponse(const std::vector<std::string>& users);
 /**
  * @brief 
  * 检查字符串是否是合法JSON
@@ -52,7 +59,8 @@ nlohmann::json MakeSystemMessage(const std::string& content);
  * @return true 解析成功，把解析后的JSON存入message
  * @return false 解析失败
  */
-bool IsVaildJson(const std::string& data, nlohmann::json& message);
+bool IsValidJson(const std::string& data, nlohmann::json& message);
+std::string GetStringField(const nlohmann::json& message, const std::string& key);
 
 } // namespace protocol
 
